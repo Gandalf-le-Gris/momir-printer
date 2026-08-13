@@ -90,7 +90,7 @@
         icon="mdi-cog"
         v-bind="props"
         variant="plain"
-        style="position: absolute; top: 12px; right: 12px"
+        style="position: absolute; top: 12px; right: 8px"
       />
     </template>
     <v-card
@@ -127,7 +127,7 @@
   <v-btn
     :icon="printerIcon"
     variant="plain"
-    style="position: absolute; top: 12px; right: 56px"
+    style="position: absolute; top: 12px; right: 44px"
     @click="printerService.connect"
   />
 </template>

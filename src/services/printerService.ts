@@ -83,12 +83,7 @@ class PrinterService {
     for (let i = 0; i < bitmap.length; i += CHUNK_SIZE) {
       const chunk = bitmap.slice(i, i + CHUNK_SIZE);
       await this.characteristic.writeValueWithoutResponse(chunk);
-      await this.sleep(10);
     }
-  }
-
-  private async sleep(time: number) {
-    await new Promise(r => setTimeout(r, time));
   }
 }
 

@@ -8,7 +8,7 @@ class ScryfallApi {
   public async getRandomCard(filters: any = {}) {
     const queryString = Object.entries(filters)
         .map(([key, value]) => `${key}=${value}`)
-        .concat(['-is:alchemy', '-stamp:acorn', '-border:silver', '-is:melded'])
+        .concat(['-is:alchemy', '-stamp:acorn', '-border:silver', '-is:melded', '-name:/^a-/'])
         .join(' ');
 
     return (await this.axios.get('/cards/random', {

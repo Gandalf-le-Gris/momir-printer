@@ -90,7 +90,7 @@
         icon="mdi-cog"
         v-bind="props"
         variant="plain"
-        style="position: absolute; top: 12px; right: 8px"
+        style="position: absolute; top: 12px; right: 4px"
       />
     </template>
     <v-card
@@ -127,7 +127,7 @@
   <v-btn
     :icon="printerIcon"
     variant="plain"
-    style="position: absolute; top: 12px; right: 44px"
+    style="position: absolute; top: 12px; right: 36px"
     @click="printerService.connect"
   />
 </template>
@@ -138,6 +138,9 @@ import { Card } from '@/types/Card';
 import { computed, ComputedRef, Ref, ref } from 'vue';
 import printerService from '@/services/printerService';
 import { createCardCanvas } from '@/services/canvasDrawer';
+import { useDisplay } from 'vuetify';
+
+const display = useDisplay();
 
 const currentCard: Ref<Card | null> = ref(null);
 const manaValues: Ref<number[]> = ref(Array.from({ length: 17 }, (_, i) => i));
@@ -167,7 +170,7 @@ async function loadNewCard(mv: number) {
 async function printCard() {
   if (currentCard.value) {
     const canvas = await createCardCanvas({ card: currentCard.value });
-    printerService.printCanvas(canvas);
+    printerService.printCanvasInStrips(canvas, display.mobile.value);
   }
 }
 

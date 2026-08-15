@@ -41,6 +41,16 @@ class PrinterService {
     const bytesPerLine = Math.ceil(width / 8);
     const commands: number[] = [];
 
+    const bayer4x4 = [
+      [  0, 128,  32, 160],
+      [192,  64, 224,  96],
+      [ 48, 176,  16, 144],
+      [240, 112, 208,  80]
+    ];
+
+    const BLACK_THRESHOLD = 48;
+    const WHITE_THRESHOLD = 180;
+
     commands.push(0x1b, 0x40);
 
     const xL = bytesPerLine & 0xff;
@@ -57,9 +67,24 @@ class PrinterService {
           const x = byteIdx * 8 + bit;
           if (x < width) {
             const offset = (y * width + x) * 4;
-            const brightness = 0.299 * data[offset] + 0.587 * data[offset + 1] + 0.114 * data[offset + 2];
-            if (brightness < 128 && data[offset + 3] > 128) {
-              byteVal |= (1 << (7 - bit));
+            const alpha = data[offset + 3];
+
+            if (alpha > 128) {
+              const brightness = 0.299 * data[offset] + 0.587 * data[offset + 1] + 0.114 * data[offset + 2];
+
+              let isBlack = false;
+
+              if (brightness < BLACK_THRESHOLD) {
+                isBlack = true;
+              } else if (brightness > WHITE_THRESHOLD) {
+                isBlack = false;
+              } else {
+                const threshold = bayer4x4[y % 4][x % 4];
+                isBlack = brightness < threshold;
+              }
+              if (isBlack) {
+                byteVal |= (1 << (7 - bit));
+              }
             }
           }
         }
@@ -67,23 +92,44 @@ class PrinterService {
       }
     }
 
-    commands.push(0x1b, 0x64, 0x03);
-
     return new Uint8Array(commands);
   }
 
-  async printCanvas(canvas: HTMLCanvasElement): Promise<void> {
+  async printCanvasInStrips(canvas: HTMLCanvasElement, isMobile: boolean, stripHeight = 64): Promise<void> {
     if (!this.characteristic) {
       throw new Error('Printer not connected.');
     }
 
-    const bitmap = this.canvasToRasterPayload(canvas);
+    const fullWidth = canvas.width;
+    const fullHeight = canvas.height;
 
-    const CHUNK_SIZE = 30;
-    for (let i = 0; i < bitmap.length; i += CHUNK_SIZE) {
-      const chunk = bitmap.slice(i, i + CHUNK_SIZE);
-      await this.characteristic.writeValueWithoutResponse(chunk);
+    for (let y = 0; y < fullHeight; y += stripHeight) {
+      const currentStripHeight = Math.min(stripHeight, fullHeight - y);
+
+      const stripCanvas = document.createElement('canvas');
+      stripCanvas.width = fullWidth;
+      stripCanvas.height = currentStripHeight;
+      const stripCtx = stripCanvas.getContext('2d');
+
+      if (stripCtx) {
+        stripCtx.drawImage(
+          canvas,
+          0, y, fullWidth, currentStripHeight,
+          0, 0, fullWidth, currentStripHeight
+        );
+
+        const stripBitmap = this.canvasToRasterPayload(stripCanvas);
+
+        const CHUNK_SIZE = isMobile ? 20 : 128;
+        for (let i = 0; i < stripBitmap.length; i += CHUNK_SIZE) {
+          const chunk = stripBitmap.slice(i, i + CHUNK_SIZE);
+          await this.characteristic.writeValueWithoutResponse(chunk);
+        }
+      }
     }
+
+    const feedCommand = new Uint8Array([0x1b, 0x64, 0x03]);
+    await this.characteristic.writeValueWithoutResponse(feedCommand);
   }
 }
 

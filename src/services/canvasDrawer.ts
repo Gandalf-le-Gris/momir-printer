@@ -1,4 +1,4 @@
-import { Card } from "@/types/Card";
+import { Card, getPng } from "@/types/Card";
 
 export interface CanvasContent {
   card: Card;
@@ -41,7 +41,9 @@ function calculateWrappedLines({ text, width, padding, ctx }: TextLineConfig): s
 }
 
 function computeCardText(card: Card): string {
-  return `${card.printed_name ?? card.name}\n${card.mana_cost}\n${card.printed_type_line ?? card.type_line}\n${card.printed_text ?? card.oracle_text}\n${card.power}/${card.toughness}`;
+  return (card.card_faces ?? [card])
+      .map(c => `${c.printed_name ?? c.name}\n${c.mana_cost}\n${c.printed_type_line ?? c.type_line}\n${c.printed_text ?? c.oracle_text}${c.toughness ? `\n${c.power}/${c.toughness}` : ''}`)
+      .join('\n');
 }
 
 export async function createCardCanvas({
@@ -102,6 +104,6 @@ export async function createCardCanvas({
     };
 
     img.onerror = () => reject(new Error('Failed to load image'));
-    img.src = card.image_uris.png ?? card.image_uris.large ?? card.image_uris.normal ?? card.image_uris.small ?? '';
+    img.src = getPng(card);
   });
 }

@@ -29,29 +29,31 @@
         class="d-flex flex-column"
       >
         <v-img
-          :src="currentCard.image_uris.png ?? currentCard.image_uris.large ?? currentCard.image_uris.normal ?? currentCard.image_uris.small"
+          :src="getPng(currentCard)"
           max-height="500"
         />
         <v-row
+          v-for="(card, id) in (currentCard.card_faces ?? [currentCard])"
+          :key="id"
           dense
           class="mt-4 mx-auto"
           style="max-width: 500px;"
         >
           <v-col class="text-h5">
-            {{ currentCard.printed_name ?? currentCard.name }}
+            {{ card.printed_name ?? card.name }}
           </v-col>
           <v-col cols="auto" class="text-h6">
-            <MtgText :text="currentCard.mana_cost" />
+            <MtgText :text="card.mana_cost" />
           </v-col>
           <v-col cols="12" class="font-weight-bold">
-            {{ currentCard.printed_type_line ?? currentCard.type_line }}
+            {{ card.printed_type_line ?? card.type_line }}
           </v-col>
           <v-col cols="12" class="text-pre-wrap">
-            <MtgText :text="currentCard.printed_text ?? currentCard.oracle_text" />
+            <MtgText :text="card.printed_text ?? card.oracle_text" />
           </v-col>
           <v-col></v-col>
-          <v-col cols="auto" class="text-h6">
-            {{ currentCard.power }} / {{ currentCard.toughness }}
+          <v-col v-if="card.toughness" cols="auto" class="text-h6">
+            {{ card.power }} / {{ card.toughness }}
           </v-col>
         </v-row>
         <div
@@ -134,7 +136,7 @@
 
 <script setup lang="ts">
 import scryfallApi from '@/api/scryfallApi';
-import { Card } from '@/types/Card';
+import { Card, getPng } from '@/types/Card';
 import { computed, ComputedRef, Ref, ref } from 'vue';
 import printerService from '@/services/printerService';
 import { createCardCanvas } from '@/services/canvasDrawer';

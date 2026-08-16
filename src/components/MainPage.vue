@@ -22,6 +22,79 @@
             @click="loadNewCard(i)"
           />
         </v-col>
+        <v-col cols="auto">
+          <v-menu
+            v-model="showSearch"
+            :close-on-content-click="false"
+            :width="$vuetify.display.mdAndUp ? 512 : '100%'"
+          >
+            <template v-slot:activator="{ props }">
+              <v-btn
+                icon="mdi-magnify"
+                v-bind="props"
+              />
+            </template>
+            <v-card>
+              <v-card-text>
+                <v-row
+                  dense
+                  align="center"
+                >
+                  <v-col cols="12">
+                    <v-autocomplete
+                      v-model="searchedCard"
+                      :items="searchResults"
+                      :loading="searchLoading"
+                      :item-title="(item: Card) => item.printed_name ?? item.name"
+                      return-object
+                      autocomplete="off"
+                      label="Nom de la carte"
+                      :menu-props="{ maxWidth: '100%', width: 0 }"
+                      no-filter
+                      hide-details
+                      hide-no-data
+                      clearable
+                      @update:search="searchCard"
+                    >
+                      <template #item="{ props, item }">
+                        <v-list-item
+                          v-bind="props"
+                          :title="item.raw.printed_name ?? item.raw.name"
+                          :subtitle="item.raw.printed_type_line ?? item.raw.type_line"
+                        >
+                          <template #append v-if="item.raw.mana_cost || item.raw.toughness || item.raw.card_faces?.some(f => f.mana_cost || f.toughness)">
+                            <div class="d-flex align-center flex-shrink-0 ml-2 text-caption text-grey">
+                              <span
+                                v-if="item.raw.mana_cost || item.raw.card_faces?.some(f => f.mana_cost)"
+                                class="text-caption text-grey ml-2"
+                              >
+                                <MtgText :text="item.raw.mana_cost ?? item.raw.card_faces?.find(f => f.mana_cost)?.mana_cost" />
+                              </span>
+                              <span
+                                v-if="item.raw.toughness || item.raw.card_faces?.some(f => f.toughness)"
+                                class="text-caption text-grey ml-2 font-weight-bold"
+                              >
+                                {{ item.raw.power ?? item.raw.card_faces?.find(f => f.toughness)?.power }} / {{ item.raw.toughness ?? item.raw.card_faces?.find(f => f.toughness)?.toughness }}
+                            </span>
+                            </div>
+                          </template>
+                        </v-list-item>
+                      </template>
+                    </v-autocomplete>
+                  </v-col>
+                  <v-col cols="12">
+                    <v-checkbox
+                      v-model="isToken"
+                      label="Jeton"
+                      hide-details
+                      class="mb-n4"
+                    />
+                  </v-col>
+                </v-row>
+              </v-card-text>
+            </v-card>
+          </v-menu>
+        </v-col>
       </v-row>
 
       <div
@@ -119,6 +192,7 @@
               label="Impression automatique"
               v-model="autoPrint"
               hide-details
+              class="mb-n4"
             />
           </v-col>
         </v-row>
@@ -137,7 +211,7 @@
 <script setup lang="ts">
 import scryfallApi from '@/api/scryfallApi';
 import { Card, getPng } from '@/types/Card';
-import { computed, ComputedRef, Ref, ref } from 'vue';
+import { computed, ComputedRef, Ref, ref, watch } from 'vue';
 import printerService from '@/services/printerService';
 import { createCardCanvas } from '@/services/canvasDrawer';
 import { useDisplay } from 'vuetify';
@@ -147,6 +221,7 @@ const display = useDisplay();
 const currentCard: Ref<Card | null> = ref(null);
 const manaValues: Ref<number[]> = ref(Array.from({ length: 17 }, (_, i) => i));
 const showSettings: Ref<boolean> = ref(false);
+const showSearch: Ref<boolean> = ref(false);
 const languages: Ref<{ value: string, text: string }[]> = ref([
   { value: 'en', text: 'Anglais' },
   { value: 'fr', text: 'Français' },
@@ -154,11 +229,15 @@ const languages: Ref<{ value: string, text: string }[]> = ref([
 const language: Ref<string> = ref('en');
 const autoPrint: Ref<boolean> = ref(false);
 const loading: Ref<boolean> = ref(false);
+const searchResults: Ref<Card[]> = ref([]);
+const searchLoading: Ref<boolean> = ref(false);
+const searchedCard: Ref<Card | undefined> = ref();
+const isToken: Ref<boolean> = ref(false);
 
 async function loadNewCard(mv: number) {
   try {
     loading.value = true;
-    currentCard.value = await scryfallApi.getRandomCard({ t: "creature", mv, lang: language.value });
+    currentCard.value = await scryfallApi.getRandomCard({ t: '/^[^\\/]*creature/', mv, lang: language.value });
     if (autoPrint.value) {
       await printCard();
     }
@@ -175,6 +254,34 @@ async function printCard() {
     printerService.printCanvasInStrips(canvas, display.mobile.value);
   }
 }
+
+let searchTimeout: number | undefined = undefined;
+async function searchCard(name: string) {
+  clearTimeout(searchTimeout);
+  if (name) {
+    searchTimeout = setTimeout(async () => {
+      try {
+        searchLoading.value = true;
+        if (isToken.value) {
+          name += ' t:token';
+        } else {
+          name += ' -t:token';
+        }
+        searchResults.value = await scryfallApi.getCardByName(name);
+      } finally {
+        searchLoading.value = false;
+      }
+    }, 500);
+  }
+}
+
+watch(searchedCard, (value) => {
+  if (value) {
+    console.log(value)
+    currentCard.value = value;
+    showSearch.value = false;
+  }
+});
 
 const printerIcon: ComputedRef<string> = computed(() => {
   switch(printerService.status.value) {

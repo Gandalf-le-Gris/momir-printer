@@ -5,7 +5,7 @@ import { Card } from "@/types/Card";
 class ScryfallApi {
 
   private axios: AxiosInstance = axiosInstance;
-  private queryFilters: string[] = ['-is:alchemy', '-stamp:acorn', '-border:silver', '-is:melded', '-name:/^a-/', '-set:unk', '-t:card', '-t:vanguard', 'is:paper'];
+  private queryFilters: string[] = ['-is:alchemy', '-stamp:acorn', '-border:silver', '-is:melded', '-name:/^a-/', '-set:unk', '-t:card', '-t:vanguard', 'is:paper', '-is:playtest'];
 
   public async getRandomCard(filters: any = {}) {
     const queryString = Object.entries(filters)
